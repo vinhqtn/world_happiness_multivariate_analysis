@@ -1,0 +1,389 @@
+---
+title: "Project Multivariate Analysis"
+author: "Vinh Ngo"
+date: "19 maaliskuuta 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r results='hide', message=FALSE, warning=FALSE}
+library(readxl)
+library(ggplot2)
+library(reshape2)
+library(ggbiplot)
+library(fitdistrplus)
+library(zoo)
+library(aTSA)
+library(tseries)
+library(lmtest)
+library(TSA)
+library("GGally")
+library("psych")
+library("factoextra")
+library(cluster)
+library(car)
+library(olsrr)
+library(gridExtra)
+```
+http://www.stat.columbia.edu/~tzheng/files/Rcolor.pdf
+
+1. Data Preparation
+```{r}
+library(readxl)
+library(ggplot2)
+library(reshape)
+library(reshape2)
+library(ggbiplot)
+library(fitdistrplus)
+library(zoo)
+library(aTSA)
+library(tseries)
+library(lmtest)
+library(TSA)
+library("GGally")
+library("psych")
+library("factoextra")
+library(cluster)
+library(car)
+library(olsrr)
+library(gridExtra)
+library(pastecs)
+setwd("C:/Users/ngoq1/OneDrive - Aalto University/Aalto/Multivariate Statistical Analysis/Project")
+
+WHraw <- read_excel("WHRFINAL.xlsx")
+summary(WHraw)
+```
+
+```{r}
+WH <- na.omit(WHraw)
+row.names(WH) <- WH$country_code
+head(round(WH[,4:10],3),5)
+summary(WH)
+
+View(stat.desc(WH[,4:10])))
+```
+
+
+2. Description of dataset
+
+There are 6 independent variables 
+
+2.1 Univariate
+
+2.1.1. Chart
+
+```{r message=FALSE}
+p1 <- ggplot(WH, aes(x=gdp_per_capita)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('GDP per Capita (USD)') + ylab('Frequency') + labs(title='(1)') + theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+p2 <- ggplot(WH, aes(x=social_support)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Social Support') + ylab('Frequency') + labs(title='(2)') + theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+p3 <- ggplot(WH, aes(x=life_expectancy)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Life Expectancy') + ylab('Frequency') + labs(title='(3)') + theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+p4 <- ggplot(WH, aes(x=freedom_to_choices)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Freedom to Choices') + ylab('Frequency') + labs(title='(4)') + theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+p5 <- ggplot(WH, aes(x=generosity)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Generosity') + ylab('Frequency') + labs(title='(5') + theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+
+p6 <- ggplot(WH, aes(x=perception_of_corruption)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Perception of Corruption') + ylab('Frequency') + labs(title='(6)') + theme_light() + theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+
+p7 <- ggplot(WH, aes(x=happiness_score)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Happiness Score') + ylab('Frequency') + labs(title='(7)') + theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))
+
+continent_pivot<- data.frame(table(WH$continent))
+continent_pivot$Proportion <- round(continent_pivot$Freq/sum(continent_pivot$Freq)*100,2)
+colnames(continent_pivot) <- c('Code','Freq','Continent')
+
+ggplot(continent_pivot, aes(x="", y=Continent, fill=Code)) +geom_bar(width = 1, stat = "identity")+ coord_polar("y", start=0)+ labs(title='(8)')+theme_light()+ theme(axis.title.y = element_text(size = 10),axis.title.x = element_text(face = 'bold'))+ geom_text(aes(label = paste0(round(Continent), "%")),position = position_stack(vjust = 0.5), size = 5)
+
+grid.arrange(p1, p2, p3,p4,p5,p6,p7, ncol=3, nrow =3)
+
+```
+
+
+
+2.1.2. Statistic values
+
+
+```{r}
+
+descdist(WH$happiness_score, discrete = FALSE)
+jarque.bera.test(WH$happiness_score)
+
+descdist(WH$gdp_per_capita, discrete = FALSE)
+jarque.bera.test(WH$gdp_per_capita)
+
+descdist(WH$social_support, discrete = FALSE)
+jarque.bera.test(WH$social_support)
+
+descdist(WH$life_expectancy, discrete = FALSE)
+jarque.bera.test(WH$life_expectancy)
+
+descdist(WH$freedom_to_choices, discrete = FALSE)
+jarque.bera.test(WH$freedom_to_choices)
+
+descdist(WH$generosity, discrete = FALSE)
+jarque.bera.test(WH$generosity)
+
+descdist(WH$perception_of_corruption, discrete = FALSE)
+jarque.bera.test(WH$perception_of_corruption)
+```
+
+... and one dependent variable
+
+```{r}
+ggplot(WH, aes(x=happiness_score)) + 
+  geom_histogram(color ="gray30",fill="goldenrod2") + xlab('Happiness Score') + ylab('Frequency') + labs(title='Happiness Score') + theme_light()
+
+descdist(WH$happiness_score, discrete = FALSE)
+jarque.bera.test(WH$happiness_score)
+```
+
+```{r}
+descdist(log(WH$gdp_per_capita), discrete = FALSE)
+descdist(log(WH$perception_of_corruption), discrete = FALSE)
+```
+
+
+2.7 Bivariate examination
+
+```{r message=FALSE,warning=FALSE} 
+unique(WH$continent)
+
+cols <- rep(NA,nrow(WH))
+
+cols[WH$continent == 'AS'] <- '#D55E00' #orange
+cols[WH$continent == 'EU'] <- '#CC79A7' #pink
+cols[WH$continent == 'AF'] <- '#009E73' #green
+cols[WH$continent == 'SA'] <- '#F0E442' #yellow
+cols[WH$continent == 'OC'] <- '#000000' #black
+cols[WH$continent == 'NA'] <- '#0072B2' #blue
+#pairs(WH.2[,5:10], col = cols, pch=16)
+
+#pairs.panels(WH[,5:10], bg = cols, pch=21, hist.col = "goldenrod2",density = TRUE,method = "spearman", scale = TRUE, cex.cor =1.8, oma=c(3,3,3,13))
+#par(xpd = TRUE)
+#legend("right", title='Continent', fill = cols,legend = c('Asia', 'Europe', 'Africa', 'South America','Oceania','North America' ),cex=0.5, pt.cex = 1,bg='grey95')
+
+ggpairs(WH, columns = 5:10, columnLabels = c("GDP per Capita", "Social Support", "Life Expectancy",'Freedom to Choices','Generosity','Perception of Corruption'), ggplot2::aes(colour=continent), upper = list(continuous = wrap('cor', method = 'spearman', size = 3,alignPercent = 1 )))+theme_bw()+theme(legend.position = "right")
+
+
+#ggpairs(WH, columns = 5:10, columnLabels = c("Total Bill", "Tip", "Sex",'a','b','c'), title='aaa', upper = list(continuous = wrap('cor', method = 'spearman')), lower = list(continuous=wrap('points', col=cols)), diag = list(continuous = wrap("densityDiag")))+theme(legend.position = "right")
+```
+
+Correlation and covariance matrix
+```{r}
+as.data.frame(cor(WH[,5:10], method = 'spearman'))
+cov(WH.2[,5:10])
+```
+
+3. Applications of multivariate statistical method to answer research questions
+
+3.1 PCA
+
+```{r}
+WH.PCA <- princomp(WH[,5:10], cor = TRUE)
+summary(WH.PCA)
+
+WH.PCA$loadings
+WH.PCA$n.obs
+View(WH.PCA$scores)
+WH.PCA$sdev
+```
+
+Scree Plot
+
+```{r}
+fviz_eig(WH.PCA,addlabels=TRUE, hjust = -0.3,linecolor ="red",barfill="goldenrod2", ncp = 10) + ylim(0, 55) + labs(x = "Principal Components", y = "% of variances") + theme_light()
+```
+
+Chart between the first 2 components
+
+```{r}
+WH.PCA.score <- as.data.frame(WH.PCA$scores[,1:2])
+#ggplot(WH.PCA.score, aes(x=WH.PCA.score[,1], y= WH.PCA.score[,2])) + geom_point(color = cols) + geom_text(label = rownames(WH.PCA.score), size=3)
+#text(as.data.frame(WH.PCA$scores[,1:2]), labels = row.names(WH.PCA))
+
+ggbiplot(WH.PCA, labels = rownames(WH), ellipse= TRUE, groups = WH$continent) + ggtitle('PC1 and PC2')+ theme_light()+theme(legend.position = "bottom", legend.background = element_rect(fill = "grey95"),legend.title = element_text(color = "Black", size = 10), legend.text = element_text(color = 'black', size = 7)) + labs(color='Continent')
+```
+
+
+```{r}
+ggbiplot(WH.PCA, choices=c(3,4),labels = rownames(WH), ellipse= TRUE, groups = WH$continent) + ggtitle('PC3 and PC4')+ theme_light()+theme(legend.position = "bottom", legend.background = element_rect(fill = "grey95"),legend.title = element_text(color = "black", size = 10), legend.text = element_text(color = 'black', size = 7)) + labs(color='Continent')
+
+```
+
+```{r}
+WH.PCA.fullScore <- data.frame(WH.PCA$scores)
+row.names(WH.PCA.fullScore) <- WH$country_code
+```
+
+
+3.2 Clustering
+
+```{r}
+WH_ <- WH[,5:10]
+row.names(WH_) <- WH$country_code
+```
+
+```{r}
+set.seed(2)
+
+k.mean2 <- kmeans(WH_,centers=2)
+k.mean3 <- kmeans(WH_,centers=3)
+k.mean4 <- kmeans(WH_,centers=4)
+k.mean5 <- kmeans(WH_,centers=5)
+
+clusplot(WH_,k.mean2$cluster,stand=T,color=T,shade=T,labels=2,lines=0, col.clus=c('#D55E00','#CC79A7'), col.p=c('#D55E00', '#CC79A7')[k.mean2$cluster], col.txt=c('#D55E00', '#CC79A7')[k.mean2$cluster],  sub='',cex=0.85, main = 'k = 2', xlab = 'Standardized PC1 (50.8%)', ylab = 'Standardized PC2 (20.9%)')
+clusplot(WH_,k.mean3$cluster,stand=T,color=T,shade=T,labels=2,lines=0, col.clus=c('#009E73','#CC79A7','#D55E00'), col.p=c('#D55E00', '#CC79A7','#009E73')[k.mean3$cluster], col.txt=c('#D55E00', '#CC79A7','#009E73')[k.mean3$cluster],  sub='',cex=0.85, main = 'k = 3', xlab = 'Standardized PC1 (50.8%)', ylab = 'Standardized PC2 (20.9%)')
+
+clusplot(WH_,k.mean4$cluster,stand=T,shade=T,color=T,labels=2,lines=0, col.clus=c('#D55E00','#0072B2','#009E73','#CC79A7'), col.p=c('#D55E00', '#CC79A7','#009E73','#0072B2')[k.mean4$cluster], col.txt=c('#D55E00', '#CC79A7','#009E73','#0072B2')[k.mean4$cluster],  sub='',cex=0.85, main = 'k = 4', xlab = 'Standardized PC1 (50.8%)', ylab = 'Standardized PC2 (20.9%)')
+
+clusplot(WH_,k.mean5$cluster,stand=T,shade=T,color=T,labels=2,lines=0, col.clus=c('#D55E00','#0072B2','#009E73','#CC79A7'), col.p=c('#D55E00', '#CC79A7','#009E73','#0072B2')[k.mean5$cluster], col.txt=c('#D55E00', '#CC79A7','#009E73','#0072B2')[k.mean5$cluster],  sub='',cex=0.85, main = 'k = 5', xlab = 'Standardized PC1 (50.8%)', ylab = 'Standardized PC2 (20.9%)')
+
+
+#clusplot(WH[,5:10],k.mean4$cluster,color=T)
+```
+
+3.3 Multivariate Linear Regression
+
+```{r}
+model1 <- lm(formula = happiness_score ~ gdp_per_capita + social_support + life_expectancy + freedom_to_choices + generosity + perception_of_corruption , data= WH)
+summary(model1)
+```
+
+```{r}
+model2 <- lm(formula = happiness_score ~ gdp_per_capita + social_support + life_expectancy + freedom_to_choices, data= WH)
+summary(model2)
+```
+
+```Perform Diagnostic Tests```
+
+For a classical linear regression model, we know that there are 5 tests that we need to conduct:
+
+**1. Check if the mean of residual equal to zero:**
+
+We can check the sum of all model residuals as below:
+```{r}
+sum(model2$residuals)
+mean(model2$residuals)
+```
+
+, which is true. 
+
+**2. Check for heteroscedasticity with White test:**
+https://cran.r-project.org/web/packages/olsrr/vignettes/heteroskedasticity.html
+
+     H0: Variance of residuals from our model is constant across the values of life_ladder (homoskedasticity)
+     H1: Variance of residuals from our model is not constant across values of life_ladder (heteroskedasticity)
+
+```{r}
+ols_test_breusch_pagan(model2)
+
+qchisq(.95, df=4)
+```
+
+**3. Check for autocorrelation:**
+
+  *Durbin-Watson Test*
+
+    H0: There is no first order autocorrelation
+    H1: There is first order autocorrelation
+
+```{r}
+dwtest(model2)
+```
+
+In both cases, p-values > 0.05, so we reject the H0, meaning that there is no autocorrelation among time series order. 
+
+**4. Check for multicollinearity by estimating the linear regression of residuals and x:**
+
+For a given predictor (p), multicollinearity can assessed by computing a score called the variance inflation factor (or VIF), which measures how much the variance of a regression coefficient is inflated due to multicollinearity in the model.The smallest possible value of VIF is one (absence of multicollinearity). As a rule of thumb, a VIF value that exceeds 5 or 10 indicates a problematic amount of collinearity (James et al. 2014).
+
+James, Gareth, Daniela Witten, Trevor Hastie, and Robert Tibshirani. 2014. An Introduction to Statistical Learning: With Applications in R. Springer Publishing Company, Incorporated.
+
+```{r}
+vif(model2)
+```
+
+
+**5. Check for normality of residuals with Shapiro-Wilk test against model residuals:**
+
+    H0: The residuals are normally distributed
+    H1: The residuals are not normally distributed
+
+```{r}
+shapiro.test(model2$residuals)
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(model2)
+```
+
+
+Since H0 > 0.05, we reject H0 and conclude that the residuals are normally distributed.
+
+http://rstudio-pubs-static.s3.amazonaws.com/457808_fcacccc737fb4b6b9a3a4285a72f6b1c.html
+https://data.library.virginia.edu/diagnostic-plots/
+
+
+```{r}
+#transformation
+
+log_gdp_per_capita <- data.frame(log(WH$gdp_per_capita))
+colnames(log_gdp_per_capita) <- c('log_gdp_per_capita')
+
+WH.2 <- cbind(WH, log_gdp_per_capita)
+WH.2 <- WH.2[,c("country" , "country_code","continent","life_ladder", "gdp_per_capita", "social_support","life_expectancy","freedom_to_choices","generosity","perception_of_corruption","log_gdp_per_capita")]
+summary(WH.2)
+```
+
+```{r}
+diagPlot<-function(model){
+    p1<-ggplot(model, aes(.fitted, .resid))+geom_point()
+    p1<-p1+stat_smooth(method="loess")+geom_hline(yintercept=0, col="red", linetype="dashed")
+    p1<-p1+xlab("Fitted values")+ylab("Residuals")
+    p1<-p1+ggtitle("Residual vs Fitted Plot")+theme_bw()
+    
+    p2<-ggplot(model, aes(qqnorm(.stdresid)[[1]], .stdresid))+geom_point(na.rm = TRUE)
+    p2<-p2+geom_abline(aes(qqline(.stdresid)))+xlab("Theoretical Quantiles")+ylab("Standardized Residuals")
+    p2<-p2+ggtitle("Normal Q-Q")+theme_bw()
+    
+    p3<-ggplot(model, aes(.fitted, sqrt(abs(.stdresid))))+geom_point(na.rm=TRUE)
+    p3<-p3+stat_smooth(method="loess", na.rm = TRUE)+xlab("Fitted Value")
+    p3<-p3+ylab(expression(sqrt("|Standardized residuals|")))
+    p3<-p3+ggtitle("Scale-Location")+theme_bw()
+    
+    p4<-ggplot(model, aes(seq_along(.cooksd), .cooksd))+geom_bar(stat="identity", position="identity")
+    p4<-p4+xlab("Obs. Number")+ylab("Cook's distance")
+    p4<-p4+ggtitle("Cook's distance")+theme_bw()
+    
+    p5<-ggplot(model, aes(.hat, .stdresid))+geom_point(aes(size=.cooksd), na.rm=TRUE)
+    p5<-p5+stat_smooth(method="loess", na.rm=TRUE)
+    p5<-p5+xlab("Leverage")+ylab("Standardized Residuals")
+    p5<-p5+ggtitle("Residual vs Leverage Plot")
+    p5<-p5+scale_size_continuous("Cook's Distance", range=c(1,5))
+    p5<-p5+theme_bw()+theme(legend.position="bottom")
+    
+    p6<-ggplot(model, aes(.hat, .cooksd))+geom_point(na.rm=TRUE)+stat_smooth(method="loess", na.rm=TRUE)
+    p6<-p6+xlab("Leverage hii")+ylab("Cook's Distance")
+    p6<-p6+ggtitle("Cook's dist vs Leverage hii/(1-hii)")
+    p6<-p6+geom_abline(slope=seq(0,3,0.5), color="gray", linetype="dashed")
+    p6<-p6+theme_bw()
+    
+    return(list(rvfPlot=p1, qqPlot=p2, sclLocPlot=p3, cdPlot=p4, rvlevPlot=p5, cvlPlot=p6))
+}
+```
+
+```{r}
+diagPlot(model2)
+```
+
+```{r}
+View(WH[order(WH$happiness_score),])
+```
+
